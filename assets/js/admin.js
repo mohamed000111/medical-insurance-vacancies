@@ -1,4 +1,5 @@
 import { supabase } from "./supabase.js";
+import { CONFIG } from "./config.js";
 
 const loginScreen = document.getElementById("login-screen");
 const dashboardScreen = document.getElementById("dashboard-screen");
