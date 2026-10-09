@@ -1,0 +1,131 @@
+<!doctype html>
+<html lang="en" dir="ltr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>MedInsure Hub · Medical Insurance Jobs & Community in Egypt</title>
+  <meta name="description" content="Latest medical insurance vacancies and professional community discussions in Cairo & Egypt — synced live from our Telegram channel." />
+  <meta property="og:title" content="MedInsure Hub — Medical Insurance Jobs & Community" />
+  <meta property="og:description" content="Fresh medical insurance vacancies and Q&A for professionals in Egypt." />
+  <meta property="og:type" content="website" />
+  <meta property="og:image" content="https://amwesufvpwxxyhgagicy.supabase.co/storage/v1/object/public/assets/hero.jpg" />
+  <meta name="theme-color" content="#050b16" />
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='9' fill='%232dd4bf'/%3E%3Cpath d='M16 8v16M8 16h16' stroke='%2304131f' stroke-width='3.2' stroke-linecap='round'/%3E%3C/svg%3E" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+  <link rel="stylesheet" href="assets/css/theme.css" />
+</head>
+<body data-title-key="navHome">
+  <div class="bg-scene" aria-hidden="true"><div class="blob blob-1"></div><div class="blob blob-2"></div><div class="blob blob-3"></div></div>
+
+  <header id="site-header" class="sticky top-0 z-50 px-4 pt-4"></header>
+
+  <main class="mx-auto max-w-6xl px-4 sm:px-6">
+    <!-- Hero -->
+    <section id="hero" class="grid lg:grid-cols-2 gap-10 items-center pt-14 pb-16 lg:pt-20">
+      <div class="reveal">
+        <span class="chip"><span class="pulse-dot"></span><span data-i18n="heroBadge"></span></span>
+        <h1 class="mt-6 text-4xl sm:text-5xl lg:text-6xl font-extrabold leading-[1.1] tracking-tight">
+          <span data-i18n="heroTitle1"></span><br />
+          <span class="text-gradient" data-i18n="heroTitle2"></span>
+        </h1>
+        <p class="mt-6 text-lg text-slate-300/90 max-w-xl leading-relaxed" data-i18n="heroSub"></p>
+        <div class="mt-8 flex flex-wrap gap-3">
+          <a id="hero-vacancies-cta" href="vacancies.html" class="btn-primary !px-6 !py-3 text-base"><span data-i18n="cardVacCta"></span><span class="inline-block rtl:rotate-180">†’</span></a>
+          <a id="hero-community-cta" href="community.html" class="btn-ghost !px-6 !py-3 text-base" data-i18n="cardComCta"></a>
+        </div>
+      </div>
+      <div class="reveal relative flex justify-center">
+        <div class="absolute inset-10 rounded-full bg-teal-400/20 blur-3xl"></div>
+        <img src="https://amwesufvpwxxyhgagicy.supabase.co/storage/v1/object/public/assets/hero.jpg" alt="Medical insurance careers illustration" width="560" height="560"
+             class="relative w-full max-w-[520px] mix-blend-screen [mask-image:radial-gradient(circle,#000_45%,transparent_72%)] animate-[float_14s_ease-in-out_infinite]" />
+      </div>
+    </section>
+
+    <!-- Stats -->
+    <section id="stats" aria-label="Statistics" class="grid sm:grid-cols-3 gap-4 reveal">
+      <div class="glass-card p-6"><p class="text-sm text-slate-400" data-i18n="statVacancies"></p><p id="stat-vacancies" class="mt-2 text-4xl font-extrabold text-gradient">—</p></div>
+      <div class="glass-card p-6"><p class="text-sm text-slate-400" data-i18n="statCommunity"></p><p id="stat-community" class="mt-2 text-4xl font-extrabold text-gradient">—</p></div>
+      <div class="glass-card p-6"><p class="text-sm text-slate-400" data-i18n="statUpdated"></p><p id="stat-updated" class="mt-3 text-2xl font-bold">—</p></div>
+    </section>
+
+    <!-- Module cards -->
+    <section id="modules" class="grid md:grid-cols-2 gap-6 py-16">
+      <a id="card-vacancies" href="vacancies.html" class="glass-card hoverable glow-border p-8 group reveal block">
+        <div class="w-14 h-14 rounded-2xl grid place-items-center bg-gradient-to-br from-teal-400 to-sky-400 text-slate-950 shadow-lg shadow-teal-500/30">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="w-7 h-7"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2M2 13h20"/></svg>
+        </div>
+        <h2 class="mt-6 text-2xl font-bold" data-i18n="cardVacTitle"></h2>
+        <p class="mt-3 text-slate-400 leading-relaxed" data-i18n="cardVacText"></p>
+        <span class="mt-6 inline-flex items-center gap-2 font-semibold text-teal-300 group-hover:gap-3 transition-all"><span data-i18n="cardVacCta"></span><span class="inline-block rtl:rotate-180">†’</span></span>
+      </a>
+      <a id="card-community" href="community.html" class="glass-card hoverable glow-border p-8 group reveal block">
+        <div class="w-14 h-14 rounded-2xl grid place-items-center bg-gradient-to-br from-violet-400 to-sky-400 text-slate-950 shadow-lg shadow-violet-500/30">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="w-7 h-7"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/><path d="M8 9h8M8 13h5"/></svg>
+        </div>
+        <h2 class="mt-6 text-2xl font-bold" data-i18n="cardComTitle"></h2>
+        <p class="mt-3 text-slate-400 leading-relaxed" data-i18n="cardComText"></p>
+        <span class="mt-6 inline-flex items-center gap-2 font-semibold text-violet-300 group-hover:gap-3 transition-all"><span data-i18n="cardComCta"></span><span class="inline-block rtl:rotate-180">†’</span></span>
+      </a>
+    </section>
+
+    <!-- How it works -->
+    <section id="how" class="pb-20 reveal">
+      <h2 class="text-3xl font-bold text-center" data-i18n="howTitle"></h2>
+      <ol class="mt-10 grid md:grid-cols-3 gap-6">
+        <li class="glass-card p-6"><span class="text-5xl font-extrabold text-gradient">01</span><h3 class="mt-3 text-lg font-semibold" data-i18n="how1T"></h3><p class="mt-2 text-slate-400" data-i18n="how1D"></p></li>
+        <li class="glass-card p-6"><span class="text-5xl font-extrabold text-gradient">02</span><h3 class="mt-3 text-lg font-semibold" data-i18n="how2T"></h3><p class="mt-2 text-slate-400" data-i18n="how2D"></p></li>
+        <li class="glass-card p-6"><span class="text-5xl font-extrabold text-gradient">03</span><h3 class="mt-3 text-lg font-semibold" data-i18n="how3T"></h3><p class="mt-2 text-slate-400" data-i18n="how3D"></p></li>
+      </ol>
+    </section>
+  </main>
+
+  <footer id="site-footer" class="border-t border-white/5"></footer>
+
+  <script type="module">
+    import { initShell, timeAgo } from "./assets/js/ui.js";
+    import { supabase, DEMO } from "./assets/js/supabase.js";
+    import { onLangChange } from "./assets/js/i18n.js";
+
+    initShell("home");
+
+    let latest = null;
+    const $ = (id) => document.getElementById(id);
+
+    function countUp(el, to) {
+      const start = performance.now(), dur = 900;
+      const step = (now) => {
+        const p = Math.min((now - start) / dur, 1);
+        el.textContent = Math.round(to * (1 - Math.pow(1 - p, 3))).toLocaleString();
+        if (p < 1) requestAnimationFrame(step);
+      };
+      requestAnimationFrame(step);
+    }
+    const renderUpdated = () => ($("stat-updated").textContent = latest ? timeAgo(latest) : "—");
+    onLangChange(renderUpdated);
+
+    async function loadStats() {
+      if (!supabase) {
+        countUp($("stat-vacancies"), DEMO.vacancies.length);
+        countUp($("stat-community"), DEMO.community.length);
+        latest = DEMO.vacancies[0].created_at;
+        return renderUpdated();
+      }
+      try {
+        const [v, c, l] = await Promise.all([
+          supabase.from("vacancies").select("id", { count: "exact", head: true }),
+          supabase.from("community_posts").select("id", { count: "exact", head: true }),
+          supabase.from("vacancies").select("created_at").order("created_at", { ascending: false }).limit(1),
+        ]);
+        countUp($("stat-vacancies"), v.count ?? 0);
+        countUp($("stat-community"), c.count ?? 0);
+        latest = l.data?.[0]?.created_at ?? null;
+        renderUpdated();
+      } catch (e) { console.error(e); }
+    }
+    loadStats();
+  </script>
+</body>
+</html>
