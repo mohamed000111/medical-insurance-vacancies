@@ -84,6 +84,8 @@ const DICT = {
     term1: "Please note that everything mentioned here is based on opportunities found by or sent to the admin. The admin is not responsible for validating or confirming the displayed content.",
     term2: "If you wish to share a file, image, or document, please upload it to a cloud storage service and share the link, as there is no file storage space on our server.",
     term3: "Please do not share sensitive data such as phone numbers, bank account numbers, or personal emails. Any use of such data is entirely at the user's own responsibility.",
+    aboutDevTitle: "Developer",
+    aboutDevText: "Mohamed Rabie's Portfolio",
   },
   ar: {
     siteName: CONFIG.SITE_NAME_AR,
@@ -165,6 +167,8 @@ const DICT = {
     term1: "برجاء العلم أن كل ما يذكر هنا نتيجة عن الفرص التي يراها الأدمن أو تصل له بأي طريقة من الطرق، والأدمن غير مسؤول عن صحة أو تأكيد ما يتم عرضه.",
     term2: "في حال رغبة حضرتك في إرسال ملف أو صورة أو خلافه، يتم تحميله على وسائط التخزين السحابي ومشاركة الرابط، وذلك لعدم وجود مساحة تخزينية بالخادم.",
     term3: "الرجاء عدم استخدام البيانات الحساسة كأرقام التليفون أو أرقام الحسابات البنكية أو الإيميلات الشخصية، وأي استخدام لهذه البيانات يقع على مسؤولية المستخدم.",
+    aboutDevTitle: "عن المطور",
+    aboutDevText: "معرض أعمال محمد ربيع",
   },
 };
 
