@@ -9,7 +9,7 @@ export const CONFIG = {
 
   SITE_NAME_EN: "MedInsure Hub",
   SITE_NAME_AR: "ميد إنشور هب",
-  TELEGRAM_URL: "https://t.me/your_channel",  // public channel link
+  TELEGRAM_URL: "https://t.me/medical_Insurance_1",  // public channel link
 
   PAGE_SIZE: 12,
   NEW_BADGE_HOURS: 24,
