@@ -23,9 +23,51 @@ const skeleton = () =>
     </div>`).join("");
 
 /* ───────────── Link Previews Engine ───────────── */
-const ogCache = new Map();
+const OG_STORAGE_KEY = "medinsure_og_cache_v2";
+
+function loadOgCache() {
+  const map = new Map();
+  try {
+    const raw = localStorage.getItem(OG_STORAGE_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      for (const [k, v] of Object.entries(parsed)) {
+        map.set(k, v);
+      }
+    }
+  } catch {}
+  return map;
+}
+
+const ogCache = loadOgCache();
+
+function saveOgCache(url, data) {
+  if (!url || !data) return;
+  ogCache.set(url, data);
+  try {
+    const obj = {};
+    let count = 0;
+    for (const [k, v] of ogCache.entries()) {
+      if (count++ > 80) break;
+      obj[k] = v;
+    }
+    localStorage.setItem(OG_STORAGE_KEY, JSON.stringify(obj));
+  } catch {}
+}
+
 const URL_REGEX = /(https?:\/\/[^\s<)\]"'\*]+)/gi;
 const EGYPT_PHONE_REGEX = /(?:\+?20[\s-]?|\b0)(1[0125](?:[\s-]?\d){8})\b/g;
+
+/** Checks if the raw text is solely (or essentially) a URL */
+export function isLinkAlone(rawText = "") {
+  if (!rawText || typeof rawText !== "string") return false;
+  const trimmed = rawText.trim();
+  if (!trimmed) return false;
+  const urls = trimmed.match(URL_REGEX);
+  if (!urls || !urls.length) return false;
+  const stripped = trimmed.replace(URL_REGEX, "").replace(/[\s\r\n\t.,;:!?)\]'"\-_/\\#*~`]+/g, "");
+  return stripped.length <= 15;
+}
 
 function extractPreviews(rawText = "") {
   const previews = [];
@@ -114,8 +156,109 @@ function extractPreviews(rawText = "") {
     }
   }
 
-  // Capped at 2 previews to keep card compact and clean
   return previews.slice(0, 2);
+}
+
+/**
+ * Renders the prominent "Hero Link Preview Card" when a link is alone.
+ * Shows title, rich description, logo/thumbnail image, badges, and CTA button.
+ */
+function renderAlonePreviewHtml(previews, vid) {
+  if (!previews || !previews.length) return "";
+  const p = previews[0];
+  const cardId = `alone-og-${vid}`;
+
+  // Check if we have pre-cached data
+  const cached = ogCache.get(p.url);
+
+  let icon = ICON.link;
+  let themeClass = "web-theme";
+  let badgeLabel = p.hostname;
+  let badgeClass = "bg-teal-500/20 text-teal-300 border border-teal-500/30";
+  let ctaLabel = t("previewVisit");
+  let ctaBtnClass = "web-btn";
+  let defaultTitle = `${p.hostname} ${t("previewJobLink")}`;
+  let defaultDesc = t("previewJobDetails");
+
+  if (p.type === "linkedin") {
+    icon = ICON.linkedin;
+    themeClass = "linkedin-theme";
+    badgeLabel = t("previewLinkedIn");
+    badgeClass = "bg-sky-500/20 text-sky-300 border border-sky-500/30";
+    ctaLabel = t("previewOpenLinkedIn");
+    ctaBtnClass = "linkedin-btn";
+    defaultTitle = "LinkedIn Job Opportunity";
+    defaultDesc = t("previewJobDetails");
+  } else if (p.type === "form") {
+    icon = ICON.form;
+    themeClass = "form-theme";
+    badgeLabel = t("previewForm");
+    badgeClass = "bg-purple-500/20 text-purple-300 border border-purple-500/30";
+    ctaLabel = t("previewOpenForm");
+    ctaBtnClass = "form-btn";
+    defaultTitle = p.title || "Online Application Form";
+    defaultDesc = t("previewFormDesc");
+  } else if (p.type === "whatsapp") {
+    icon = ICON.whatsapp;
+    themeClass = "wa-theme";
+    badgeLabel = t("previewApplyWa");
+    badgeClass = "bg-emerald-500/20 text-emerald-300 border border-emerald-500/30";
+    ctaLabel = t("previewChat");
+    ctaBtnClass = "wa-btn";
+    defaultTitle = `WhatsApp (${p.displayPhone || "Direct"})`;
+    defaultDesc = t("previewWaDesc");
+  }
+
+  const finalTitle = cached?.title || defaultTitle;
+  const finalDesc = cached?.description || cached?.publisher || defaultDesc;
+  const imgUrl = cached?.image?.url || cached?.logo?.url || "";
+
+  // Display URL (truncated neatly without scheme)
+  const displayUrl = p.url.replace(/^https?:\/\//i, "").replace(/\/$/, "");
+
+  return `
+  <div class="alone-preview-box">
+    <a id="${cardId}" href="${escapeHtml(p.url)}" target="_blank" rel="noopener noreferrer"
+       class="alone-preview-card ${themeClass} glow-border group og-fetchable"
+       data-og-url="${escapeHtml(p.url)}">
+      
+      <!-- Top header: Badge + Hostname + External Arrow -->
+      <div class="flex items-center justify-between gap-2 mb-3">
+        <div class="flex items-center gap-2 min-w-0">
+          <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md text-xs font-semibold ${badgeClass}">
+            ${icon}
+            <span>${escapeHtml(badgeLabel)}</span>
+          </span>
+          <span class="text-xs text-slate-400 font-mono truncate" dir="ltr">${escapeHtml(p.hostname)}</span>
+        </div>
+        <span class="text-slate-400 group-hover:text-teal-300 transition-colors">${ICON.external}</span>
+      </div>
+
+      <!-- Main body: Thumbnail (if any) + Title + Description -->
+      <div class="flex flex-col sm:flex-row gap-3.5 items-start">
+        <div class="og-thumb-wrap ${imgUrl ? '' : 'hidden'} shrink-0">
+          ${imgUrl ? `<img src="${escapeHtml(imgUrl)}" class="alone-thumb-img" alt="Preview" loading="lazy" />` : ""}
+        </div>
+        <div class="min-w-0 flex-1 space-y-1.5">
+          <h3 class="og-title text-[15px] sm:text-base font-bold text-white group-hover:text-teal-300 transition-colors line-clamp-2 leading-snug" dir="auto">
+            ${escapeHtml(finalTitle)}
+          </h3>
+          <p class="og-desc text-xs sm:text-[13px] text-slate-300 line-clamp-3 leading-relaxed" dir="auto">
+            ${escapeHtml(finalDesc)}
+          </p>
+        </div>
+      </div>
+
+      <!-- Footer: Clean URL + CTA Button -->
+      <div class="mt-3.5 pt-2.5 border-t border-white/5 flex items-center justify-between gap-3 text-xs">
+        <span class="text-slate-400 truncate max-w-[55%] font-mono text-[11px]" dir="ltr">${escapeHtml(displayUrl)}</span>
+        <span class="alone-cta-btn ${ctaBtnClass}">
+          <span>${ctaLabel}</span>
+          ${ICON.external}
+        </span>
+      </div>
+    </a>
+  </div>`;
 }
 
 function renderPreviewsHtml(previews, vid) {
@@ -221,13 +364,13 @@ function enhanceLinkPreviews() {
 
     try {
       const res = await fetch(`https://api.microlink.io?url=${encodeURIComponent(url)}`, {
-        signal: AbortSignal.timeout(3500)
+        signal: AbortSignal.timeout(8000)
       });
       if (!res.ok) return;
       const json = await res.json();
       const data = json?.data;
-      if (data && (data.title || data.image)) {
-        ogCache.set(url, data);
+      if (data && (data.title || data.image || data.description)) {
+        saveOgCache(url, data);
         applyOgData(cardEl, data);
       }
     } catch {
@@ -237,6 +380,7 @@ function enhanceLinkPreviews() {
 }
 
 function applyOgData(cardEl, data) {
+  if (!cardEl || !data) return;
   const titleEl = cardEl.querySelector(".og-title");
   const descEl = cardEl.querySelector(".og-desc");
   const thumbWrap = cardEl.querySelector(".og-thumb-wrap");
@@ -247,29 +391,36 @@ function applyOgData(cardEl, data) {
   if (descEl && (data.description || data.publisher)) {
     descEl.textContent = data.description || data.publisher;
   }
-  if (thumbWrap && data.image?.url) {
-    thumbWrap.innerHTML = `<img src="${escapeHtml(data.image.url)}" class="preview-thumb" alt="Preview" loading="lazy" />`;
+  const imgUrl = data.image?.url || data.logo?.url;
+  if (thumbWrap && imgUrl) {
+    thumbWrap.innerHTML = `<img src="${escapeHtml(imgUrl)}" class="alone-thumb-img preview-thumb" alt="Preview" loading="lazy" />`;
+    thumbWrap.classList.remove("hidden");
     thumbWrap.classList.remove("preview-icon-wrapper");
-  } else if (thumbWrap && data.logo?.url) {
-    thumbWrap.innerHTML = `<img src="${escapeHtml(data.logo.url)}" class="w-6 h-6 object-contain" alt="Logo" loading="lazy" />`;
   }
 }
 
 function card(v, i) {
   const src = v.source === "web" ? t("srcWeb") : t("srcTelegram");
-  const long = v.content.length > 420 || v.content.split("\n").length > 11;
+  const alone = isLinkAlone(v.content);
   const previews = extractPreviews(v.content);
+  const long = !alone && (v.content.length > 420 || v.content.split("\n").length > 11);
+  const captionText = alone ? v.content.replace(URL_REGEX, "").trim() : "";
 
   return `
-  <article id="v-${escapeHtml(v.id)}" class="glass-card hoverable glow-border p-6 flex flex-col reveal" style="animation-delay:${(i % 6) * 60}ms">
+  <article id="v-${escapeHtml(v.id)}" class="glass-card hoverable glow-border p-6 flex flex-col reveal ${alone ? "alone-card" : ""}" style="animation-delay:${(i % 6) * 60}ms">
     <div class="flex items-center justify-between gap-3 mb-4">
       <span class="inline-flex items-center gap-2 text-xs text-slate-400">${ICON.clock}<time datetime="${v.created_at}" title="${fullDate(v.created_at)}">${timeAgo(v.created_at)}</time></span>
       ${isNew(v.created_at) ? `<span class="badge-new">${t("newBadge")}</span>` : ""}
     </div>
-    <div class="post-body text-[15px] ${long ? "clamp" : ""}" dir="auto">${linkify(v.content)}</div>
-    ${long ? `<button type="button" class="expand-btn self-start mt-2 text-sm font-semibold text-teal-300 hover:text-teal-200" data-more>+ ${t("showMore")}</button>` : ""}
-    
-    ${renderPreviewsHtml(previews, v.id)}
+
+    ${alone ? `
+      ${captionText ? `<div class="text-xs text-slate-400 mb-2 font-medium" dir="auto">${escapeHtml(captionText)}</div>` : ""}
+      ${renderAlonePreviewHtml(previews, v.id)}
+    ` : `
+      <div class="post-body text-[15px] ${long ? "clamp" : ""}" dir="auto">${linkify(v.content)}</div>
+      ${long ? `<button type="button" class="expand-btn self-start mt-2 text-sm font-semibold text-teal-300 hover:text-teal-200" data-more>+ ${t("showMore")}</button>` : ""}
+      ${renderPreviewsHtml(previews, v.id)}
+    `}
 
     <div class="grow"></div>
     <footer class="mt-5 pt-5 border-t border-white/5 flex items-center justify-between gap-3 text-xs text-slate-400">

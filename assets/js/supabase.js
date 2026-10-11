@@ -11,6 +11,12 @@ export const supabase = isConfigured()
 export const DEMO = {
   vacancies: [
     {
+      id: "af1d2b4d-d37a-49f6-8e15-07befa0695ae",
+      content: "https://www.linkedin.com/jobs/view/4464014608/",
+      source: "telegram",
+      created_at: new Date(Date.now() - 24 * 3600e3).toISOString(),
+    },
+    {
       id: "d1",
       content:
         "🚨 مطلوب فورًا | Medical Claims Specialist\n\n🏢 شركة رعاية طبية كبرى — مدينة نصر\n💰 الراتب: 9,000 – 12,000 ج.م\n⏰ شيفت صباحي 9 ص – 5 م\n✅ خبرة سنة على الأقل في Medical Insurance\n\n📲 للتقديم واتساب: https://wa.me/201000000000",
