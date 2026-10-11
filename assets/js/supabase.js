@@ -31,6 +31,13 @@ export const DEMO = {
       source: "telegram",
       created_at: new Date(Date.now() - 4 * 86400e3).toISOString(),
     },
+    {
+      id: "d4",
+      content:
+        "📢 Senior Medical Auditor & Underwriter\n\n🏥 Leading Health Insurance Organization — Dokki\n💼 4+ years of underwriting & clinical audit experience\n🎯 Attractive package + Medical Insurance + Bonus\n\n📝 Apply via Google Form:\nhttps://forms.gle/MedInsureApplication",
+      source: "telegram",
+      created_at: new Date(Date.now() - 5 * 86400e3).toISOString(),
+    },
   ],
   interviews: [
     {

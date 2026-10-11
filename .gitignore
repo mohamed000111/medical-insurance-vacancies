@@ -1,0 +1,21 @@
+# Python virtual environment & cache
+.venv/
+__pycache__/
+*.pyc
+
+# Telegram session & secrets
+*.session
+*.session-journal
+.env
+
+# Local test scratch
+scratch*
+cookie.txt
+preview.html
+
+# Node & database
+node_modules/
+dist/
+*.db
+*.sqlite3
+data/*.db
