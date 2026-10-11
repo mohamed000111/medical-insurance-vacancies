@@ -32,6 +32,19 @@ export const DEMO = {
       created_at: new Date(Date.now() - 4 * 86400e3).toISOString(),
     },
   ],
+  interviews: [
+    {
+      id: "i1",
+      company_name: "Bupa",
+      position: "Medical Approvals Doctor",
+      topics: "They asked about my experience with ICD-10, how I handle difficult providers, and a clinical scenario about pre-existing conditions.",
+      pdf_link: "",
+      hr_name: "Mr. Tarek",
+      hr_phone: "+201000000000",
+      hr_email: "tarek@example.com",
+      created_at: new Date(Date.now() - 5 * 3600e3).toISOString(),
+    },
+  ],
   community: [
     {
       id: "c1",

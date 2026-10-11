@@ -76,6 +76,7 @@ export function initShell(active) {
     ["index.html", "navHome", "home"],
     ["vacancies.html", "navVacancies", "vacancies"],
     ["community.html", "navCommunity", "community"],
+    ["interviews.html", "navInterviews", "interviews"],
     ["terms.html", "navTerms", "terms"],
   ];
   const nav = links
