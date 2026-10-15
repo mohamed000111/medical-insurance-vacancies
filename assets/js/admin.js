@@ -91,11 +91,26 @@ const cancelEditBtn = $("cancel-edit-btn");
 const manageFeedback = $("manage-feedback");
 
 const addAdminSection = $("add-admin-section");
-const addAdminForm = $("add-admin-form");
-const newAdminEmail = $("new-admin-email");
-const newAdminPassword = $("new-admin-password");
-const addAdminBtn = $("add-admin-btn");
-const addAdminFeedback = $("add-admin-feedback");
+const adminsTbody = $("admins-tbody");
+const adminsCountEl = $("admins-count");
+const adminsFilter = $("admins-filter");
+const adminsError = $("admins-error");
+const refreshAdminsBtn = $("refresh-admins-btn");
+const newAdminBtn = $("new-admin-btn");
+
+const adminDialog = $("admin-dialog");
+const adminForm = $("admin-form");
+const adminDialogTitle = $("admin-dialog-title");
+const adminDialogSub = $("admin-dialog-sub");
+const adminFormId = $("admin-form-id");
+const adminFormUsername = $("admin-form-username");
+const adminFormEmail = $("admin-form-email");
+const adminFormPassword = $("admin-form-password");
+const adminFormPasswordHint = $("admin-form-password-hint");
+const adminFormRoleAdmin = $("admin-form-role-admin");
+const adminFormRoleSuper = $("admin-form-role-super");
+const adminFormError = $("admin-form-error");
+const adminFormSubmit = $("admin-form-submit");
 
 const appsTbody = $("apps-tbody");
 const cvsCountEl = $("cvs-count");
@@ -105,7 +120,9 @@ const exportHtmlBtn = $("export-html-btn");
 const exportCsvBtn = $("export-csv-btn");
 
 let currentUser = null;
+let currentUsername = null;
 let isSuper = false;
+let adminAccounts = [];
 let myVacancies = [];
 let applications = [];
 let currentEditingUuid = null;
@@ -128,11 +145,25 @@ async function checkSession() {
   }
   currentUser = session.user;
   isSuper = (currentUser.email || "").toLowerCase() === SUPER_ADMIN_EMAIL;
+  currentUsername = null;
+
+  // Role & username from public.admin_profiles (migration 0013). Ignored if not migrated yet.
+  try {
+    const { data: profile, error } = await supabase
+      .from("admin_profiles")
+      .select("username, role")
+      .eq("user_id", currentUser.id)
+      .maybeSingle();
+    if (!error && profile) {
+      if (profile.role === "super_admin") isSuper = true;
+      currentUsername = profile.username || null;
+    }
+  } catch (_) { /* table missing → keep email-based check */ }
 
   authContainer.classList.add("hidden");
   dashboardScreen.classList.remove("hidden");
 
-  currentUserEmailEl.textContent = currentUser.email;
+  currentUserEmailEl.textContent = currentUsername ? `${currentUsername} · ${currentUser.email}` : currentUser.email;
   postingAsEl.textContent = currentUser.email;
   currentUserRoleEl.textContent = isSuper ? "Super Admin" : "Admin";
   currentUserRoleEl.className = `role-pill ${isSuper
@@ -492,6 +523,7 @@ supabase.auth.onAuthStateChange(async (event, session) => {
 function loadDashboard() {
   loadMyVacancies();
   loadApplications();
+  if (isSuper) loadAdmins();
 }
 
 /* ───────────── 1. Publish ───────────── */
@@ -769,36 +801,229 @@ deleteVacancyBtn.addEventListener("click", async () => {
   }
 });
 
-/* ───────────── 3. Add admin (super admin only) ───────────── */
-addAdminForm.addEventListener("submit", async (e) => {
-  e.preventDefault();
-  if (!isSuper) return alert("Only the super admin can create new admins.");
+/* ───────────── 3. Admin accounts (super admin only) ───────────── */
+// All privileged operations go through the `admin-users` Edge Function
+// (service role on the server; caller must be a super admin).
+async function callAdminApi(payload) {
+  const { data: { session } } = await supabase.auth.getSession();
+  if (!session) throw new Error("Session expired. Please sign in again.");
 
-  addAdminBtn.disabled = true;
-  addAdminBtn.textContent = "Creating...";
-
-  const email = newAdminEmail.value.trim();
-  const password = newAdminPassword.value;
-
+  let res;
   try {
-    // Raw fetch instead of supabase.auth.signUp so the current admin isn't logged out
-    const res = await fetch(`${CONFIG.SUPABASE_URL}/auth/v1/signup`, {
+    res = await fetch(`${CONFIG.SUPABASE_URL}/functions/v1/admin-users`, {
       method: "POST",
-      headers: { apikey: CONFIG.SUPABASE_ANON_KEY, "Content-Type": "application/json" },
-      body: JSON.stringify({ email, password }),
+      headers: {
+        "Content-Type": "application/json",
+        apikey: CONFIG.SUPABASE_ANON_KEY,
+        Authorization: `Bearer ${session.access_token}`,
+      },
+      body: JSON.stringify(payload),
     });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.msg || data.error_description || "Signup failed");
+  } catch (_) {
+    throw new Error("Couldn't reach the admin-users Edge Function. Is it deployed?");
+  }
 
-    newAdminEmail.value = "";
-    newAdminPassword.value = "";
-    addAdminFeedback.classList.remove("hidden");
-    setTimeout(() => addAdminFeedback.classList.add("hidden"), 5000);
+  let data = {};
+  try { data = await res.json(); } catch (_) { /* non-JSON */ }
+  if (res.status === 404 && !data.error) {
+    throw new Error("The admin-users Edge Function is not deployed. Run: supabase functions deploy admin-users --no-verify-jwt");
+  }
+  if (!res.ok) throw new Error(data.error || data.message || data.msg || `Request failed (${res.status})`);
+  return data;
+}
+
+const isRootEmail = (email) => (email || "").toLowerCase() === SUPER_ADMIN_EMAIL;
+const fmtDate = (d) => (d ? new Date(d).toLocaleString() : "—");
+
+async function loadAdmins() {
+  if (!isSuper) return;
+  adminsError.classList.add("hidden");
+  adminsTbody.innerHTML = '<tr><td colspan="6" class="text-slate-500">Loading admins…</td></tr>';
+  try {
+    const { users } = await callAdminApi({ action: "list" });
+    adminAccounts = users || [];
+    renderAdmins();
   } catch (err) {
-    alert("Failed to create admin: " + err.message);
+    adminAccounts = [];
+    adminsCountEl.textContent = 0;
+    adminsTbody.innerHTML = '<tr><td colspan="6" class="text-slate-500">—</td></tr>';
+    adminsError.textContent = err.message;
+    adminsError.classList.remove("hidden");
+  }
+}
+
+function renderAdmins() {
+  const q = adminsFilter.value.trim().toLowerCase();
+  const rows = q
+    ? adminAccounts.filter((u) => [u.email, u.username, u.role].some((f) => String(f || "").toLowerCase().includes(q)))
+    : adminAccounts;
+
+  adminsCountEl.textContent = adminAccounts.length;
+  if (!rows.length) {
+    adminsTbody.innerHTML = `<tr><td colspan="6" class="text-slate-500">${q ? "No admins match your filter." : "No admin accounts yet."}</td></tr>`;
+    return;
+  }
+
+  const meIsRoot = isRootEmail(currentUser?.email);
+  adminsTbody.innerHTML = rows.map((u) => {
+    const isMe = u.id === currentUser?.id;
+    const canEdit = !u.is_root || meIsRoot;
+    const canDelete = !u.is_root && !isMe;
+    const rolePill = u.role === "super_admin"
+      ? '<span class="role-pill bg-amber-500/15 text-amber-300 border border-amber-500/30">Super Admin</span>'
+      : '<span class="role-pill bg-teal-500/15 text-teal-300 border border-teal-500/30">Admin</span>';
+    return `
+    <tr>
+      <td class="font-semibold text-sky-200">${u.username ? esc(u.username) : '<span class="text-slate-600 font-normal">—</span>'}
+        ${isMe ? '<span class="ml-1 text-[10px] text-slate-400">(you)</span>' : ""}
+        ${u.is_root ? '<span class="ml-1 text-[10px] text-amber-400" title="Permanent owner account">★ root</span>' : ""}
+      </td>
+      <td class="text-slate-200">${esc(u.email)}${u.email_confirmed ? "" : ' <span class="text-[10px] text-amber-400">(unconfirmed)</span>'}</td>
+      <td>${rolePill}</td>
+      <td class="text-slate-500 whitespace-nowrap">${esc(fmtDate(u.last_sign_in_at))}</td>
+      <td class="text-slate-500 whitespace-nowrap">${esc(new Date(u.created_at).toLocaleDateString())}</td>
+      <td class="text-right whitespace-nowrap">
+        <button type="button" class="icon-btn bg-sky-500/15 text-sky-300 hover:bg-sky-500/25 edit-admin-btn" data-id="${esc(u.id)}" ${canEdit ? "" : 'disabled title="Only the root account can edit itself"'}>Edit</button>
+        <button type="button" class="icon-btn bg-red-500/15 text-red-300 hover:bg-red-500/25 del-admin-btn ml-1" data-id="${esc(u.id)}" ${canDelete ? "" : `disabled title="${isMe ? "You can't delete yourself" : "The root account can't be deleted"}"`}>Delete</button>
+      </td>
+    </tr>`;
+  }).join("");
+}
+
+function openAdminDialog(user = null) {
+  const isEdit = !!user;
+  adminForm.reset();
+  adminFormError.classList.add("hidden");
+  adminFormPassword.type = "password";
+
+  adminFormId.value = user?.id || "";
+  adminFormUsername.value = user?.username || "";
+  adminFormEmail.value = user?.email || "";
+  adminFormPassword.value = "";
+  adminFormPassword.required = !isEdit;
+  adminFormPasswordHint.textContent = isEdit ? "(leave blank to keep current)" : "(min 6 characters)";
+
+  const role = user?.role || "admin";
+  adminFormRoleAdmin.checked = role === "admin";
+  adminFormRoleSuper.checked = role === "super_admin";
+
+  // Mirror server-side rules in the UI
+  const lockRole = isEdit && (user.is_root || user.id === currentUser?.id);
+  adminFormRoleAdmin.disabled = lockRole;
+  adminFormRoleSuper.disabled = lockRole;
+  adminFormEmail.readOnly = isEdit && user.is_root;
+  adminFormEmail.classList.toggle("opacity-60", adminFormEmail.readOnly);
+
+  adminDialogTitle.textContent = isEdit ? `Edit ${user.username || user.email}` : "New Admin";
+  adminDialogSub.textContent = isEdit
+    ? (lockRole ? "Your own role (and the root account's role) can't be changed." : "Update email, password, username or role.")
+    : "Create a new admin account. It is confirmed immediately — no email verification needed.";
+  adminFormSubmit.textContent = isEdit ? "Save Changes" : "Create Admin";
+
+  adminDialog.showModal();
+  (isEdit ? adminFormUsername : adminFormEmail).focus();
+}
+
+function closeAdminDialog() {
+  adminDialog.close();
+}
+
+function generatePassword(len = 14) {
+  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789!@#$%*?";
+  const buf = new Uint32Array(len);
+  crypto.getRandomValues(buf);
+  return Array.from(buf, (n) => chars[n % chars.length]).join("");
+}
+
+newAdminBtn.addEventListener("click", () => openAdminDialog());
+refreshAdminsBtn.addEventListener("click", loadAdmins);
+adminsFilter.addEventListener("input", renderAdmins);
+$("admin-dialog-close").addEventListener("click", closeAdminDialog);
+$("admin-form-cancel").addEventListener("click", closeAdminDialog);
+$("admin-form-genpass").addEventListener("click", () => {
+  adminFormPassword.value = generatePassword();
+  adminFormPassword.type = "text";
+  adminFormPassword.select();
+});
+$("admin-form-showpass").addEventListener("click", () => {
+  adminFormPassword.type = adminFormPassword.type === "password" ? "text" : "password";
+});
+
+adminsTbody.addEventListener("click", async (e) => {
+  const editBtn = e.target.closest(".edit-admin-btn");
+  const delBtn = e.target.closest(".del-admin-btn");
+  if (editBtn && !editBtn.disabled) {
+    const u = adminAccounts.find((x) => x.id === editBtn.dataset.id);
+    if (u) openAdminDialog(u);
+    return;
+  }
+  if (delBtn && !delBtn.disabled) {
+    const u = adminAccounts.find((x) => x.id === delBtn.dataset.id);
+    if (!u) return;
+    const label = u.username ? `${u.username} (${u.email})` : u.email;
+    if (!confirm(`Permanently delete admin account "${label}"?\n\nThey will no longer be able to sign in. Vacancies they published are kept.`)) return;
+
+    delBtn.disabled = true;
+    delBtn.textContent = "Deleting…";
+    try {
+      await callAdminApi({ action: "delete", id: u.id });
+      await loadAdmins();
+      loadMyVacancies();
+    } catch (err) {
+      alert("Failed to delete admin: " + err.message);
+      delBtn.disabled = false;
+      delBtn.textContent = "Delete";
+    }
+  }
+});
+
+adminForm.addEventListener("submit", async (e) => {
+  e.preventDefault();
+  if (!isSuper) return;
+  adminFormError.classList.add("hidden");
+
+  const id = adminFormId.value;
+  const isEdit = !!id;
+  const original = isEdit ? adminAccounts.find((x) => x.id === id) : null;
+  const role = adminFormRoleSuper.checked ? "super_admin" : "admin";
+  const payload = { action: isEdit ? "update" : "create" };
+
+  if (isEdit) {
+    payload.id = id;
+    if (adminFormEmail.value.trim().toLowerCase() !== (original?.email || "").toLowerCase()) payload.email = adminFormEmail.value.trim();
+    if ((adminFormUsername.value.trim() || null) !== (original?.username || null)) payload.username = adminFormUsername.value.trim();
+    if (adminFormPassword.value) payload.password = adminFormPassword.value;
+    if (!adminFormRoleSuper.disabled && role !== original?.role) payload.role = role;
+    if (Object.keys(payload).length === 2) return closeAdminDialog(); // nothing changed
+  } else {
+    Object.assign(payload, {
+      email: adminFormEmail.value.trim(),
+      password: adminFormPassword.value,
+      username: adminFormUsername.value.trim(),
+      role,
+    });
+  }
+
+  if (payload.role && original?.role === "super_admin" && payload.role === "admin" &&
+      !confirm(`Remove super admin rights from ${original.email}?`)) return;
+
+  adminFormSubmit.disabled = true;
+  adminFormSubmit.textContent = isEdit ? "Saving…" : "Creating…";
+  try {
+    await callAdminApi(payload);
+    closeAdminDialog();
+    await loadAdmins();
+    // Editing your own account → refresh session so header/email stay accurate
+    if (isEdit && id === currentUser?.id) {
+      await supabase.auth.refreshSession();
+      checkSession();
+    }
+  } catch (err) {
+    adminFormError.textContent = err.message;
+    adminFormError.classList.remove("hidden");
   } finally {
-    addAdminBtn.disabled = false;
-    addAdminBtn.textContent = "Create Admin";
+    adminFormSubmit.disabled = false;
+    adminFormSubmit.textContent = isEdit ? "Save Changes" : "Create Admin";
   }
 });
 

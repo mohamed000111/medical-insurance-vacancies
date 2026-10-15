@@ -23,6 +23,20 @@
     .my-vac { cursor: pointer; transition: .15s; }
     .my-vac:hover, .my-vac.active { border-color: rgba(217,70,239,.6); background: rgba(217,70,239,.06); }
     .role-pill { font-size: .7rem; font-weight: 700; padding: .15rem .55rem; border-radius: 999px; }
+    .admin-dialog { width: min(480px, calc(100vw - 2rem)); margin: auto; padding: 1.5rem; color: #f8fafc;
+      background: linear-gradient(180deg, rgba(15,23,42,.98), rgba(8,15,30,.98)); border: 1px solid rgba(56,189,248,.25);
+      border-radius: 1rem; box-shadow: 0 30px 80px -20px rgba(14,165,233,.35); }
+    .admin-dialog::backdrop { background: rgba(2,6,23,.7); backdrop-filter: blur(4px); }
+    .admin-dialog[open] { animation: dlg-in .18s ease-out; }
+    @keyframes dlg-in { from { opacity: 0; transform: translateY(8px) scale(.98); } to { opacity: 1; transform: none; } }
+    .role-opt { display: grid; grid-template-columns: auto 1fr; column-gap: .5rem; align-items: center; cursor: pointer;
+      padding: .6rem .75rem; border-radius: .6rem; border: 1px solid rgba(255,255,255,.1); background: rgba(15,23,42,.6); transition: .15s; }
+    .role-opt small { grid-column: 2; font-size: .7rem; color: #64748b; }
+    .role-opt span { font-weight: 600; font-size: .85rem; }
+    .role-opt:has(input:checked) { border-color: rgba(56,189,248,.6); background: rgba(56,189,248,.08); }
+    .role-opt:has(input:disabled) { opacity: .5; cursor: not-allowed; }
+    .icon-btn { padding: .3rem .55rem; border-radius: .4rem; font-size: .75rem; font-weight: 600; transition: .15s; }
+    .icon-btn:disabled { opacity: .35; cursor: not-allowed; }
   </style>
 </head>
 <body class="min-h-screen p-4 sm:p-8">
@@ -255,31 +269,84 @@
       </form>
     </section>
 
-    <!-- 3. Add New Admin (super admin only) -->
+    <!-- 3. Admin Accounts (super admin only) -->
     <section id="add-admin-section" class="glass p-6 hidden">
-      <h2 class="text-xl font-bold mb-4 text-sky-400 flex items-center gap-2">
-        <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M16 3.13a4 4 0 0 1 0 7.75M22 21v-2a4 4 0 0 0-3-3.87M10 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8z"/></svg>
-        Add New Admin User
-        <span class="role-pill bg-amber-500/15 text-amber-300 border border-amber-500/30">Super admin only</span>
-      </h2>
-      <form id="add-admin-form" class="space-y-4">
-        <div class="grid md:grid-cols-2 gap-4">
-          <div>
-            <label for="new-admin-email" class="block text-sm mb-1 text-slate-400">Email Address</label>
-            <input type="email" id="new-admin-email" required class="w-full bg-slate-900 border border-slate-700 rounded px-4 py-2 text-white outline-none focus:border-teal-500" />
-          </div>
-          <div>
-            <label for="new-admin-password" class="block text-sm mb-1 text-slate-400">Password</label>
-            <input type="password" id="new-admin-password" required minlength="6" class="w-full bg-slate-900 border border-slate-700 rounded px-4 py-2 text-white outline-none focus:border-teal-500" />
-          </div>
+      <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
+        <h2 class="text-xl font-bold text-sky-400 flex items-center gap-2">
+          <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M16 3.13a4 4 0 0 1 0 7.75M22 21v-2a4 4 0 0 0-3-3.87M10 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8z"/></svg>
+          Admin Accounts (<span id="admins-count">0</span>)
+          <span class="role-pill bg-amber-500/15 text-amber-300 border border-amber-500/30">Super admin only</span>
+        </h2>
+        <div class="flex flex-wrap items-center gap-2">
+          <label for="admins-filter" class="sr-only">Filter admins</label>
+          <input id="admins-filter" type="search" placeholder="Filter by email, username…" class="w-52 bg-slate-900 border border-slate-700 rounded px-3 py-1.5 text-white outline-none focus:border-sky-500 text-xs" />
+          <button type="button" id="refresh-admins-btn" class="btn bg-slate-800 hover:bg-slate-700 text-xs text-slate-300">Refresh</button>
+          <button type="button" id="new-admin-btn" class="btn bg-sky-600 hover:bg-sky-500 text-white text-xs font-semibold">+ New Admin</button>
         </div>
-        <div class="flex items-center gap-4">
-          <button type="submit" id="add-admin-btn" class="btn bg-sky-600 hover:bg-sky-500">Create Admin</button>
-          <span id="add-admin-feedback" class="text-sm text-sky-400 hidden">Admin created! They must verify their email.</span>
-        </div>
-        <p class="text-xs text-slate-500 mt-2">Note: "Enable Signups" must be ON in Supabase Auth settings. New admins must confirm their email (or be auto-confirmed in the dashboard) before logging in.</p>
-      </form>
+      </div>
+      <p id="admins-error" class="text-sm text-red-400 hidden mb-3"></p>
+      <div class="overflow-x-auto max-h-[420px] overflow-y-auto rounded-lg border border-white/5">
+        <table class="tbl">
+          <thead>
+            <tr>
+              <th>Username</th>
+              <th>Email</th>
+              <th>Role</th>
+              <th>Last sign-in</th>
+              <th>Created</th>
+              <th class="text-right">Actions</th>
+            </tr>
+          </thead>
+          <tbody id="admins-tbody">
+            <tr><td colspan="6" class="text-slate-500">Loading admins…</td></tr>
+          </tbody>
+        </table>
+      </div>
     </section>
+
+    <!-- Create / Edit admin dialog -->
+    <dialog id="admin-dialog" class="admin-dialog">
+      <form id="admin-form" method="dialog" class="space-y-4" autocomplete="off">
+        <div class="flex items-start justify-between gap-3">
+          <div>
+            <h3 id="admin-dialog-title" class="text-lg font-bold text-sky-300">New Admin</h3>
+            <p id="admin-dialog-sub" class="text-xs text-slate-400 mt-0.5">Create a new admin account. It is confirmed immediately.</p>
+          </div>
+          <button type="button" id="admin-dialog-close" class="text-slate-400 hover:text-white text-xl leading-none" aria-label="Close">×</button>
+        </div>
+        <input type="hidden" id="admin-form-id" />
+        <div>
+          <label for="admin-form-username" class="block text-sm mb-1 text-slate-400">Username <span class="text-slate-600">(optional)</span></label>
+          <input type="text" id="admin-form-username" maxlength="32" pattern="[A-Za-z0-9._\-]{3,32}" placeholder="e.g. dr.mona" class="w-full bg-slate-900 border border-slate-700 rounded px-3 py-2 text-white outline-none focus:border-sky-500 text-sm" />
+        </div>
+        <div>
+          <label for="admin-form-email" class="block text-sm mb-1 text-slate-400">Email Address</label>
+          <input type="email" id="admin-form-email" required class="w-full bg-slate-900 border border-slate-700 rounded px-3 py-2 text-white outline-none focus:border-sky-500 text-sm" />
+        </div>
+        <div>
+          <label for="admin-form-password" class="block text-sm mb-1 text-slate-400">
+            Password <span id="admin-form-password-hint" class="text-slate-600"></span>
+          </label>
+          <div class="flex gap-2">
+            <input type="password" id="admin-form-password" minlength="6" autocomplete="new-password" class="w-full bg-slate-900 border border-slate-700 rounded px-3 py-2 text-white outline-none focus:border-sky-500 text-sm" />
+            <button type="button" id="admin-form-genpass" class="btn bg-slate-800 hover:bg-slate-700 text-xs whitespace-nowrap" title="Generate a strong password">Generate</button>
+            <button type="button" id="admin-form-showpass" class="btn bg-slate-800 hover:bg-slate-700 text-xs" title="Show / hide">👁</button>
+          </div>
+        </div>
+        <div>
+          <span class="block text-sm mb-1 text-slate-400">Role</span>
+          <div class="grid grid-cols-2 gap-2">
+            <label class="role-opt"><input type="radio" name="admin-form-role" id="admin-form-role-admin" value="admin" checked /> <span>Admin</span><small>Manages own vacancies &amp; applicants</small></label>
+            <label class="role-opt"><input type="radio" name="admin-form-role" id="admin-form-role-super" value="super_admin" /> <span>Super Admin</span><small>Full access + manages admins</small></label>
+          </div>
+        </div>
+        <p id="admin-form-error" class="text-red-400 text-sm hidden"></p>
+        <div class="flex items-center justify-end gap-2 pt-2">
+          <button type="button" id="admin-form-cancel" class="btn bg-slate-800 hover:bg-slate-700">Cancel</button>
+          <button type="submit" id="admin-form-submit" class="btn bg-sky-600 hover:bg-sky-500 text-white font-semibold">Create Admin</button>
+        </div>
+      </form>
+    </dialog>
 
     <!-- 4. Applicants table -->
     <section class="glass p-6">

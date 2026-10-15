@@ -2,6 +2,16 @@
 <html lang="en" dir="ltr">
 <head>
   <meta charset="UTF-8" />
+  <script>
+    // Supabase auth callbacks (password recovery / magic link / errors) may land on the
+    // site root. Forward them to the admin page, which knows how to handle the session.
+    (function () {
+      var h = window.location.hash || "";
+      if (/(access_token=|type=recovery|type=magiclink|error_code=)/.test(h)) {
+        window.location.replace("admin.html" + h);
+      }
+    })();
+  </script>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>MedInsure Hub · Medical Insurance Jobs & Community in Egypt</title>
   <meta name="description" content="Latest medical insurance vacancies and professional community discussions in Cairo & Egypt — synced live from our Telegram channel." />
