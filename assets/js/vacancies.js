@@ -400,17 +400,25 @@ function applyOgData(cardEl, data) {
 }
 
 function card(v, i) {
-  const src = v.source === "web" ? t("srcWeb") : t("srcTelegram");
+  const isVerified = v.source === "web" || v.is_verified_recruiter === true || v.source === "admin";
+  const src = v.source === "web" ? t("srcAdmin") : (v.source === "telegram" ? t("srcTelegram") : t("srcWeb"));
   const alone = isLinkAlone(v.content);
   const previews = extractPreviews(v.content);
   const long = !alone && (v.content.length > 420 || v.content.split("\n").length > 11);
   const captionText = alone ? v.content.replace(URL_REGEX, "").trim() : "";
 
   return `
-  <article id="v-${escapeHtml(v.id)}" class="glass-card hoverable glow-border p-6 flex flex-col reveal ${alone ? "alone-card" : ""}" style="animation-delay:${(i % 6) * 60}ms">
+  <article id="v-${escapeHtml(v.id)}" class="glass-card hoverable glow-border p-6 flex flex-col reveal ${alone ? "alone-card" : ""} ${isVerified ? "verified-card" : ""}" style="animation-delay:${(i % 6) * 60}ms">
     <div class="flex items-center justify-between gap-3 mb-4">
       <span class="inline-flex items-center gap-2 text-xs text-slate-400">${ICON.clock}<time datetime="${v.created_at}" title="${fullDate(v.created_at)}">${timeAgo(v.created_at)}</time></span>
-      ${isNew(v.created_at) ? `<span class="badge-new">${t("newBadge")}</span>` : ""}
+      <div class="flex items-center gap-2">
+        ${isVerified ? `
+          <span class="badge-verified" title="${t("verifiedRecruiterTip")}">
+            <span class="badge-verified-icon">${ICON.verified}</span>
+            <span class="badge-verified-text">${t("verifiedRecruiter")}</span>
+          </span>` : ""}
+        ${isNew(v.created_at) ? `<span class="badge-new">${t("newBadge")}</span>` : ""}
+      </div>
     </div>
 
     ${alone ? `
@@ -422,9 +430,22 @@ function card(v, i) {
       ${renderPreviewsHtml(previews, v.id)}
     `}
 
+    ${isVerified ? `
+      <div class="mt-4 pt-3 border-t border-emerald-500/15 flex items-center justify-between gap-3 flex-wrap">
+        <span class="text-xs text-emerald-300 font-medium flex items-center gap-1.5">
+          ${ICON.verified}
+          <span>${t("verifiedApplyDirect")}</span>
+        </span>
+        <button type="button" class="btn-submit-cv" data-submit-cv="${escapeHtml(v.id)}" data-title="${escapeHtml(v.content.slice(0, 60))}">
+          ${ICON.uploadCv}
+          <span>${t("submitCv")}</span>
+        </button>
+      </div>
+    ` : ""}
+
     <div class="grow"></div>
     <footer class="mt-5 pt-5 border-t border-white/5 flex items-center justify-between gap-3 text-xs text-slate-400">
-      <span class="inline-flex items-center gap-1.5">${v.source === "web" ? ICON.globe : ICON.telegram}${t("via")} ${src} · ${fullDate(v.created_at)}</span>
+      <span class="inline-flex items-center gap-1.5">${isVerified ? ICON.verifiedShield : (v.source === "telegram" ? ICON.telegram : ICON.globe)}${t("via")} ${src} · ${fullDate(v.created_at)}</span>
       <span class="flex gap-1 items-center">
         <span class="font-mono bg-slate-800/50 px-1.5 py-0.5 rounded select-all mr-2" title="Vacancy UUID">${v.id}</span>
         <button type="button" class="btn-ghost !p-2" data-copy title="${t("copy")}" aria-label="${t("copy")}">${ICON.copy}</button>
@@ -500,6 +521,10 @@ list.addEventListener("click", async (e) => {
     const body = art.querySelector(".post-body");
     const open = body.classList.toggle("clamp");
     e.target.closest("[data-more]").textContent = open ? `+ ${t("showMore")}` : `− ${t("showLess")}`;
+  } else if (e.target.closest("[data-submit-cv]")) {
+    const btn = e.target.closest("[data-submit-cv]");
+    const vid = btn.getAttribute("data-submit-cv");
+    openCvModal(vid, v);
   } else if (e.target.closest("[data-copy]")) {
     await navigator.clipboard.writeText(v.content);
     toast(t("copied"));
@@ -510,6 +535,198 @@ list.addEventListener("click", async (e) => {
   }
 });
 
+/* ───────────── CV Submission Modal & Storage ───────────── */
+const cvModal = document.getElementById("cv-modal");
+const cvModalClose = document.getElementById("cv-modal-close");
+const cvModalSub = document.getElementById("cv-modal-sub");
+const cvForm = document.getElementById("cv-form");
+const cvVacancyId = document.getElementById("cv-vacancy-id");
+const cvDropzone = document.getElementById("cv-dropzone");
+const cvFileInput = document.getElementById("cv-file-input");
+const cvDropzoneContent = document.getElementById("cv-dropzone-content");
+const cvFileSelected = document.getElementById("cv-file-selected");
+const cvFilename = document.getElementById("cv-filename");
+const cvFilesize = document.getElementById("cv-filesize");
+const cvRemoveFile = document.getElementById("cv-remove-file");
+const cvSubmitBtn = document.getElementById("cv-submit-btn");
+
+function formatBytes(bytes) {
+  if (bytes < 1024) return bytes + " B";
+  if (bytes < 1048576) return (bytes / 1024).toFixed(1) + " KB";
+  return (bytes / 1048576).toFixed(1) + " MB";
+}
+
+function openCvModal(vid, v) {
+  if (!cvModal) return;
+  cvForm.reset();
+  clearSelectedFile();
+  cvVacancyId.value = vid;
+  const firstLine = (v?.content || "").trim().split("\n")[0].slice(0, 48);
+  cvModalSub.textContent = firstLine ? `${t("submitCvModalSub")}: ${firstLine}...` : `${t("submitCvModalSub")} #${vid.slice(0, 8)}...`;
+  cvModal.classList.add("open");
+  document.body.style.overflow = "hidden";
+}
+
+function closeCvModal() {
+  if (!cvModal) return;
+  cvModal.classList.remove("open");
+  document.body.style.overflow = "";
+}
+
+function setSelectedFile(file) {
+  if (!file) return;
+  const ext = file.name.split(".").pop().toLowerCase();
+  if (!["pdf", "doc", "docx"].includes(ext)) {
+    toast(t("invalidFileType"), "err");
+    cvFileInput.value = "";
+    return;
+  }
+  if (file.size > 10 * 1024 * 1024) {
+    toast(t("fileTooLarge"), "err");
+    cvFileInput.value = "";
+    return;
+  }
+  cvFilename.textContent = file.name;
+  cvFilesize.textContent = formatBytes(file.size);
+  cvDropzoneContent.classList.add("hidden");
+  cvFileSelected.classList.remove("hidden");
+  cvFileSelected.classList.add("flex");
+}
+
+function clearSelectedFile() {
+  if (cvFileInput) cvFileInput.value = "";
+  if (cvDropzoneContent) cvDropzoneContent.classList.remove("hidden");
+  if (cvFileSelected) {
+    cvFileSelected.classList.add("hidden");
+    cvFileSelected.classList.remove("flex");
+  }
+}
+
+if (cvModal) {
+  cvModalClose.addEventListener("click", closeCvModal);
+  cvModal.addEventListener("click", (e) => {
+    if (e.target === cvModal) closeCvModal();
+  });
+  window.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && cvModal.classList.contains("open")) closeCvModal();
+  });
+
+  cvDropzone.addEventListener("click", (e) => {
+    if (e.target.closest("#cv-remove-file")) return;
+    cvFileInput.click();
+  });
+
+  cvFileInput.addEventListener("change", () => {
+    if (cvFileInput.files.length) setSelectedFile(cvFileInput.files[0]);
+  });
+
+  cvRemoveFile.addEventListener("click", (e) => {
+    e.stopPropagation();
+    clearSelectedFile();
+  });
+
+  // Drag and drop
+  cvDropzone.addEventListener("dragover", (e) => {
+    e.preventDefault();
+    cvDropzone.classList.add("dragover");
+  });
+  cvDropzone.addEventListener("dragleave", () => {
+    cvDropzone.classList.remove("dragover");
+  });
+  cvDropzone.addEventListener("drop", (e) => {
+    e.preventDefault();
+    cvDropzone.classList.remove("dragover");
+    if (e.dataTransfer.files.length) {
+      cvFileInput.files = e.dataTransfer.files;
+      setSelectedFile(e.dataTransfer.files[0]);
+    }
+  });
+
+  // Form submit
+  cvForm.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const file = cvFileInput.files[0];
+    if (!file) {
+      toast(t("invalidFileType"), "err");
+      return;
+    }
+
+    const name = cvForm.applicant_name.value.trim();
+    const phone = cvForm.applicant_phone.value.trim();
+    const email = cvForm.applicant_email.value.trim();
+    const note = cvForm.note.value.trim();
+    const vid = cvVacancyId.value;
+
+    if (name.length < 2 || phone.length < 5) {
+      toast(t("validation"), "err");
+      return;
+    }
+
+    cvSubmitBtn.disabled = true;
+    cvSubmitBtn.innerHTML = `<span>${t("cvSubmitting")}</span>`;
+
+    try {
+      let cvUrl = "";
+      if (supabase) {
+        const cleanName = file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
+        const filePath = `${vid}/${Date.now()}_${cleanName}`;
+
+        const { data: uploadData, error: uploadError } = await supabase.storage
+          .from("cv_files")
+          .upload(filePath, file, { cacheControl: "3600", upsert: false });
+
+        if (uploadError) throw uploadError;
+
+        const { data: urlData } = supabase.storage
+          .from("cv_files")
+          .getPublicUrl(filePath);
+
+        cvUrl = urlData?.publicUrl || filePath;
+
+        // Record in vacancy_applications table (safe try/catch)
+        try {
+          await supabase.from("vacancy_applications").insert({
+            vacancy_id: vid.length === 36 ? vid : null,
+            applicant_name: name,
+            applicant_phone: phone,
+            applicant_email: email,
+            cv_url: cvUrl,
+            file_name: file.name,
+            file_size: file.size,
+            note: note
+          });
+        } catch (dbErr) {
+          console.warn("Could not record in vacancy_applications table:", dbErr);
+        }
+      } else {
+        // Demo mode fallback
+        await new Promise((r) => setTimeout(r, 700));
+        const demoCvs = JSON.parse(localStorage.getItem("mih_demo_cvs") || "[]");
+        demoCvs.push({
+          vacancy_id: vid,
+          applicant_name: name,
+          applicant_phone: phone,
+          applicant_email: email,
+          file_name: file.name,
+          created_at: new Date().toISOString()
+        });
+        localStorage.setItem("mih_demo_cvs", JSON.stringify(demoCvs));
+      }
+
+      toast(t("cvSuccessMsg"));
+      closeCvModal();
+      cvForm.reset();
+      clearSelectedFile();
+    } catch (err) {
+      console.error("CV upload failed:", err);
+      toast(t("cvErrorMsg"), "err");
+    } finally {
+      cvSubmitBtn.disabled = false;
+      cvSubmitBtn.innerHTML = `${ICON.uploadCv}<span data-i18n="cvSubmitBtn">${t("cvSubmitBtn")}</span>`;
+    }
+  });
+}
+
 onLangChange(() => items.length && render());
 
 await fetchPage(true);
@@ -519,3 +736,4 @@ if (location.hash.startsWith("#v-")) {
   const el = document.getElementById(location.hash.slice(1));
   if (el) { el.scrollIntoView({ behavior: "smooth", block: "center" }); el.classList.add("ring-2", "ring-teal-400"); }
 }
+

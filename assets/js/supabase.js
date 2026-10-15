@@ -3,7 +3,11 @@ import { CONFIG, isConfigured } from "./config.js";
 
 export const supabase = isConfigured()
   ? createClient(CONFIG.SUPABASE_URL, CONFIG.SUPABASE_ANON_KEY, {
-      auth: { persistSession: false },
+      auth: {
+        persistSession: true,
+        autoRefreshToken: true,
+        detectSessionInUrl: true,
+      },
     })
   : null;
 
@@ -27,7 +31,7 @@ export const DEMO = {
       id: "d2",
       content:
         "We're hiring 👩‍⚕️ Approval Doctor (Pre-authorization)\n\n📍 New Cairo — hybrid\n🩺 Licensed physician, 1–3 yrs TPA experience\n🕑 Night shift available (+ allowance)\n\nSend your CV via WhatsApp: +20 111 000 0000",
-      source: "telegram",
+      source: "web",
       created_at: new Date(Date.now() - 30 * 3600e3).toISOString(),
     },
     {
