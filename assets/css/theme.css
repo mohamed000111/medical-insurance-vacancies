@@ -355,6 +355,18 @@ html[lang="ar"] body { font-family: var(--font-ar); }
   border-color: rgba(16, 185, 129, 0.55);
   box-shadow: 0 12px 30px -10px rgba(16, 185, 129, 0.25);
 }
+.preview-card.mail-card {
+  border-color: rgba(245, 158, 11, 0.25);
+  background: linear-gradient(135deg, rgba(245, 158, 11, 0.08) 0%, rgba(10, 22, 40, 0.6) 100%);
+}
+.preview-card.mail-card:hover {
+  border-color: rgba(245, 158, 11, 0.55);
+  box-shadow: 0 12px 30px -10px rgba(245, 158, 11, 0.25);
+}
+.preview-icon-wrapper.mail {
+  background: rgba(245, 158, 11, 0.2);
+  color: #fbbf24;
+}
 .preview-card.form-card {
   border-color: rgba(168, 85, 247, 0.25);
   background: linear-gradient(135deg, rgba(168, 85, 247, 0.08) 0%, rgba(10, 22, 40, 0.6) 100%);

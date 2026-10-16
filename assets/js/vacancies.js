@@ -56,6 +56,7 @@ function saveOgCache(url, data) {
 }
 
 const URL_REGEX = /(https?:\/\/[^\s<)\]"'\*]+)/gi;
+const EMAIL_REGEX = /[A-Za-z0-9._%+\-]+@[A-Za-z0-9\-]+(?:\.[A-Za-z0-9\-]+)*\.[A-Za-z]{2,}/g;
 const EGYPT_PHONE_REGEX = /(?:\+?20[\s-]?|\b0)(1[0125](?:[\s-]?\d){8})\b/g;
 
 /** Checks if the raw text is solely (or essentially) a URL */
@@ -156,7 +157,24 @@ function extractPreviews(rawText = "") {
     }
   }
 
-  return previews.slice(0, 2);
+  // 3. Email addresses
+  const emails = rawText.match(EMAIL_REGEX) || [];
+  const seenMail = new Set();
+  for (const raw of emails) {
+    const email = raw.replace(/[.,;:]+$/, "");
+    const key = email.toLowerCase();
+    if (seenMail.has(key)) continue;
+    seenMail.add(key);
+    previews.push({
+      type: "mail",
+      url: `mailto:${email}`,
+      displayEmail: email,
+      hostname: email.split("@")[1]
+    });
+    break;
+  }
+
+  return previews.slice(0, 3);
 }
 
 /**
@@ -265,6 +283,25 @@ function renderPreviewsHtml(previews, vid) {
   if (!previews || !previews.length) return "";
 
   const cardsHtml = previews.map((p, idx) => {
+    if (p.type === "mail") {
+      return `
+      <a href="${escapeHtml(p.url)}" class="preview-card mail-card flex items-center justify-between gap-3">
+        <div class="flex items-center gap-3 min-w-0">
+          <span class="preview-icon-wrapper mail">${ICON.mail}</span>
+          <div class="min-w-0">
+            <div class="text-xs font-semibold text-amber-300 flex items-center gap-1.5">
+              ${t("previewApplyMail")}
+              <span class="text-[10px] bg-amber-500/20 text-amber-200 px-1.5 py-0.5 rounded font-mono">Email</span>
+            </div>
+            <div class="text-[13px] text-slate-300 font-medium truncate font-mono" dir="ltr">${escapeHtml(p.displayEmail)}</div>
+          </div>
+        </div>
+        <span class="preview-badge-btn bg-amber-500/15 text-amber-200 border border-amber-500/30">
+          ${t("previewSendMail")} ${ICON.external}
+        </span>
+      </a>`;
+    }
+
     if (p.type === "whatsapp") {
       return `
       <a href="${escapeHtml(p.url)}" target="_blank" rel="noopener noreferrer" class="preview-card wa-card flex items-center justify-between gap-3">
